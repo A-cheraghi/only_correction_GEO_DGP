@@ -209,8 +209,8 @@ class Trainer(object):
         
     def train(self):
 
-        self.extract_and_save_features("cached_features.pt")
-        return None  # 
+        # self.extract_and_save_features("cached_features.pt")
+        # return None  
 
 
         start_epoch = self.epoch
