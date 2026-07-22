@@ -135,24 +135,15 @@ class Trainer(object):
 
 
 
-    def extract_and_save_features(self, save_path="cached_features.pt"):
-        self.model.train()
+    def extract_and_save_features(self, save_dir="/content/cached_batches"):
         
-        storage = {
-            "outputs_coord": [],
-            "outputs_coord_logits": [],
-            "outputs_class": [],
-            "outputs_3d_dim": [],
-            "outputs_depth": [],
-            "outputs_angle": [],
-            "inter_class": [],
-            "inter_coord": [],
-            "hs_2d_last": [],
-            "hs_3d_last": [],
-            "targets": []
-        }
+        # ۱. ساخت پوشه ذخیره‌سازی در صورت عدم وجود
+        os.makedirs(save_dir, exist_ok=True)
+        
+        # حتماً حالت مدل را مطابق با اجرایت تنظیم کن (مثلاً train یا eval)
+        self.model.train()
 
-        self.logger.info(">>>>>>> Extracting features from dataset...")
+        self.logger.info(f">>>>>>> Extracting and saving features batch by batch to '{save_dir}'...")
 
         with torch.no_grad():
             for batch_idx, (inputs, calibs, targets, info) in enumerate(tqdm.tqdm(self.train_loader)):
@@ -172,38 +163,20 @@ class Trainer(object):
                 # دریافت خروجی مدل و داده‌های استخراجی
                 _, extracted = self.model(inputs, calibs, prepared_targets, img_sizes, dn_args=dn_args)
 
-                # اضافه کردن ویژگی‌ها به آرشیو
+                # ساخت دیکشنری مخصوص همین بچ
+                batch_data = {}
                 for key in extracted.keys():
-                    storage[key].append(extracted[key].detach().cpu())
+                    # تمام تانسورها بدون هیچ تغییر یا چسباندنی به CPU منتقل می‌شوند
+                    batch_data[key] = extracted[key].detach().cpu()
                 
-                storage["targets"].append(prepared_targets)
+                # ذخیره تارگت‌های مربوط به همین بچ
+                batch_data["targets"] = prepared_targets
 
-        self.logger.info(">>>>>>> Concatenating and saving to disk...")
+                # ۲. ذخیره مستقیم هر بچ در یک فایل جداگانه
+                batch_file_path = os.path.join(save_dir, f"batch_{batch_idx}.pt")
+                torch.save(batch_data, batch_file_path)
 
-        # چسباندن دقیق و تفکیک‌شده تانسورها روی بعد بچ صحیح
-        final_dataset = {}
-        
-        # لیست تانسورهایی که بعد لایه دارند [layers, batch, queries, ...] و باید روی dim=1 چسبانده شوند
-        layer_tensors = [
-            "outputs_coord", "outputs_coord_logits", "outputs_class", 
-            "outputs_3d_dim", "outputs_depth", "outputs_angle", 
-            "inter_class", "inter_coord"
-        ]
-
-        for key in storage.keys():
-            if key == "targets":
-                final_dataset[key] = storage[key]
-            elif key in layer_tensors:
-                # چسباندن روی dim=1 (بعد بچ در تانسورهای 4 بعد)
-                final_dataset[key] = torch.cat(storage[key], dim=1)
-            else:
-                # تانسورهای hs_2d_last و hs_3d_last که 3 بعدی هستند [batch, queries, hidden_dim]
-                # باید حتماً روی dim=0 (بعد بچ) چسبانده شوند
-                final_dataset[key] = torch.cat(storage[key], dim=0)
-
-        # ذخیره فایل نهایی روی دیسک
-        torch.save(final_dataset, save_path)
-        self.logger.info(f" Successfully saved all cached features to '{save_path}'!")
+        self.logger.info(f" Successfully saved all batches to '{save_dir}'!")
 
 
         
