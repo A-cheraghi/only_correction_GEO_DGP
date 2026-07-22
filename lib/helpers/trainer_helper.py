@@ -188,8 +188,8 @@ class Trainer(object):
         
     def train(self):
 
-        self.extract_and_save_features()
-        return None  
+        # self.extract_and_save_features()
+        # return None  
 
 
         start_epoch = self.epoch
