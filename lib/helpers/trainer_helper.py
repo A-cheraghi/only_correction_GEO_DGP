@@ -153,7 +153,7 @@ class Trainer(object):
             "targets": []  # ذخیره تارگت‌های مربوط به هر بچ جهت حفظ دقیق همخوانی
         }
 
-        print(">>>>>>> Extracting features from dataset...")
+        self.logger.info(">>>>>>> Extracting features from dataset...")
 
         with torch.no_grad():  # غیرفعال کردن گراف محاسباتی برای حفظ سرعت و رم
             for batch_idx, (inputs, calibs, targets, info) in enumerate(tqdm.tqdm(self.train_loader)):
@@ -180,7 +180,7 @@ class Trainer(object):
                 # ذخیره تارگت‌ها همزمان با بچ جهت جلوگیری از هرگونه ناهماهنگی لیبل
                 storage["targets"].append(prepared_targets)
 
-        print(">>>>>>> Concatenating and saving to disk...")
+        self.logger.info(">>>>>>> Concatenating and saving to disk...")
 
         # چسباندن بچ‌ها به صورت یکپارچه
         final_dataset = {}
@@ -196,16 +196,15 @@ class Trainer(object):
 
         # ذخیره فایل نهایی روی دیسک
         torch.save(final_dataset, save_path)
-        print(f" Successfully saved all cached features to '{save_path}'!")
+        self.logger.info(f" Successfully saved all cached features to '{save_path}'!")
 
 
 
         
     def train(self):
 
-        self.extract_and_save_features("cached_features.pt")
-        print("استخراج داده‌ها با موفقیت تمام شد. خروج از برنامه.")
-        return None  # جلوی اجرای بقیه کد و حلقه‌های آموزش را می‌گیرد
+        # self.extract_and_save_features("cached_features.pt")
+        # return None  # جلوی اجرای بقیه کد و حلقه‌های آموزش را می‌گیرد
 
 
         start_epoch = self.epoch

@@ -356,6 +356,37 @@ class MonoDGP(nn.Module):
             "hs_3d_last": hs[-1].detach().cpu(),
         }
 
+
+
+
+        # =========================================================
+        # تنظیم اندیس نمونه مورد نظر از بچ (مثلاً 0 برای اولی، 1 برای دومی)
+        # =========================================================
+        sample_idx = 0  # <--- این عدد را برای تغییر تصویر تغییر بده
+
+        print("\n" + "="*50)
+        print(f">>> FORWARD OUTPUTS FOR SAMPLE {sample_idx} IN BATCH (Query Index 0) <<<")
+        print("="*50)
+        
+        # 1. Bounding Boxes
+        print(f"Pred Boxes (Final):       {out['pred_boxes'][sample_idx, 0].detach().cpu().numpy()}")
+        
+        # 2. Class Logits (5 مقدار اول)
+        print(f"Pred Logits (First 5):   {out['pred_logits'][sample_idx, 0, :5].detach().cpu().numpy()}")
+        
+        # 3. 3D Dimensions
+        print(f"Pred 3D Dim:             {out['pred_3d_dim'][sample_idx, 0].detach().cpu().numpy()}")
+        
+        # 4. Depth
+        print(f"Pred Depth:              {out['pred_depth'][sample_idx, 0].detach().cpu().numpy()}")
+        
+        # 5. Angle (5 مقدار اول)
+        print(f"Pred Angle (First 5):    {out['pred_angle'][sample_idx, 0, :5].detach().cpu().numpy()}")
+        
+        print("="*50 + "\n")
+        # =========================================================
+
+
         return out, extracted_data
 
 
