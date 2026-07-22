@@ -182,7 +182,7 @@ class Trainer(object):
         
     def train(self):
 
-        self.extract_and_save_features("cached_features.pt")
+        self.extract_and_save_features()
         return None  
 
 
