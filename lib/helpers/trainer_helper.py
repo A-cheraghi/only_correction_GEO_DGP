@@ -136,7 +136,7 @@ class Trainer(object):
 
 
     def extract_and_save_features(self, save_path="cached_features.pt"):
-        self.model.eval()  # حالت ارزیابی
+        self.model.train()
         
         storage = {
             "outputs_coord": [],
