@@ -135,55 +135,55 @@ class Trainer(object):
 
 
 
-def extract_and_save_features(self, save_path="/content/cached_features_unified.pt"):
-    self.model.eval()
-    self.logger.info(f">>>>> Extracting ONLY network features to '{save_path}'...")
+    def extract_and_save_features(self, save_path="/content/cached_features_unified.pt"):
+        self.model.eval()
+        self.logger.info(f">>>>> Extracting ONLY network features to '{save_path}'...")
 
-    # ۱. ساخت دیکشنری با لیست‌های خالی برای خروجی‌های مدل
-    collected_data = {}
+        # ۱. ساخت دیکشنری با لیست‌های خالی برای خروجی‌های مدل
+        collected_data = {}
 
-    with torch.no_grad():
-        for batch_idx, (inputs, calibs, targets, info) in enumerate(tqdm.tqdm(self.train_loader)):
-            inputs = inputs.to(self.device)
-            calibs = calibs.to(self.device)
-            for key in targets.keys():
-                targets[key] = targets[key].to(self.device)
-            
-            img_sizes = targets['img_size']
-            prepared_targets = self.prepare_targets(targets, inputs.shape[0])
-            
-            # دریافت فقط خروجی شبکه (extracted)
-            _, extracted = self.model(inputs, calibs, prepared_targets, img_sizes)
+        with torch.no_grad():
+            for batch_idx, (inputs, calibs, targets, info) in enumerate(tqdm.tqdm(self.train_loader)):
+                inputs = inputs.to(self.device)
+                calibs = calibs.to(self.device)
+                for key in targets.keys():
+                    targets[key] = targets[key].to(self.device)
+                
+                img_sizes = targets['img_size']
+                prepared_targets = self.prepare_targets(targets, inputs.shape[0])
+                
+                # دریافت فقط خروجی شبکه (extracted)
+                _, extracted = self.model(inputs, calibs, prepared_targets, img_sizes)
 
-            # ساخت کلیدها در بچ اول
-            if batch_idx == 0:
+                # ساخت کلیدها در بچ اول
+                if batch_idx == 0:
+                    for key in extracted.keys():
+                        collected_data[key] = []
+
+                # ۲. اضافه کردن مستقیم ویژگی‌ها به لیست روی CPU
                 for key in extracted.keys():
-                    collected_data[key] = []
+                    collected_data[key].append(extracted[key].detach().cpu())
 
-            # ۲. اضافه کردن مستقیم ویژگی‌ها به لیست روی CPU
-            for key in extracted.keys():
-                collected_data[key].append(extracted[key].detach().cpu())
+        # ۳. چسباندن لیست‌ها و تبدیل به تانسور یکپارچه
+        self.logger.info("Combining network features into unified tensors...")
+        final_dataset = {}
 
-    # ۳. چسباندن لیست‌ها و تبدیل به تانسور یکپارچه
-    self.logger.info("Combining network features into unified tensors...")
-    final_dataset = {}
+        # لیست کلیدهایی که ۴بعدی هستند (بعد بچ روی dim=1 است)
+        layer_tensors = [
+            "outputs_coord", "outputs_coord_logits", "outputs_class", 
+            "outputs_3d_dim", "outputs_depth", "outputs_angle", 
+            "inter_class", "inter_coord"
+        ]
 
-    # لیست کلیدهایی که ۴بعدی هستند (بعد بچ روی dim=1 است)
-    layer_tensors = [
-        "outputs_coord", "outputs_coord_logits", "outputs_class", 
-        "outputs_3d_dim", "outputs_depth", "outputs_angle", 
-        "inter_class", "inter_coord"
-    ]
+        for key, val_list in collected_data.items():
+            if key in layer_tensors:
+                final_dataset[key] = torch.cat(val_list, dim=1)
+            else:
+                final_dataset[key] = torch.cat(val_list, dim=0)
 
-    for key, val_list in collected_data.items():
-        if key in layer_tensors:
-            final_dataset[key] = torch.cat(val_list, dim=1)
-        else:
-            final_dataset[key] = torch.cat(val_list, dim=0)
-
-    # ۴. ذخیره تک‌فایل نهایی بدون هیچ داده اضافی
-    torch.save(final_dataset, save_path, _use_new_zipfile_serialization=True)
-    self.logger.info(f" Successfully saved unified network features to '{save_path}'!")
+        # ۴. ذخیره تک‌فایل نهایی بدون هیچ داده اضافی
+        torch.save(final_dataset, save_path, _use_new_zipfile_serialization=True)
+        self.logger.info(f" Successfully saved unified network features to '{save_path}'!")
 
         
     def train(self):
