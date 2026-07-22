@@ -343,20 +343,6 @@ class MonoDGP(nn.Module):
         
 
 
-        extracted_data = {
-            "outputs_coord": outputs_coord.detach().cpu(),
-            "outputs_coord_logits": outputs_coord_logits.detach().cpu(),
-            "outputs_class": outputs_class.detach().cpu(),
-            "outputs_3d_dim": outputs_3d_dim.detach().cpu(),
-            "outputs_depth": outputs_depth.detach().cpu(),
-            "outputs_angle": outputs_angle.detach().cpu(),
-            "inter_class": inter_class.detach().cpu(),
-            "inter_coord": inter_coord.detach().cpu(),
-            "hs_2d_last": hs_2d[-1].detach().cpu(),
-            "hs_3d_last": hs[-1].detach().cpu(),
-        }
-
-
 
 
         # =========================================================
@@ -386,7 +372,19 @@ class MonoDGP(nn.Module):
         print("="*50 + "\n")
         # =========================================================
 
-
+        # extracted_data = {
+        #     "outputs_coord": outputs_coord.detach().cpu(),
+        #     "outputs_coord_logits": outputs_coord_logits.detach().cpu(),
+        #     "outputs_class": outputs_class.detach().cpu(),
+        #     "outputs_3d_dim": outputs_3d_dim.detach().cpu(),
+        #     "outputs_depth": outputs_depth.detach().cpu(),
+        #     "outputs_angle": outputs_angle.detach().cpu(),
+        #     "inter_class": inter_class.detach().cpu(),
+        #     "inter_coord": inter_coord.detach().cpu(),
+        #     "hs_2d_last": hs_2d[-1].detach().cpu(),
+        #     "hs_3d_last": hs[-1].detach().cpu(),
+        # }
+        # return out, extracted_data
         return out, extracted_data
 
 
