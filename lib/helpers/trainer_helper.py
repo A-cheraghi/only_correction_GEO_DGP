@@ -135,10 +135,9 @@ class Trainer(object):
 
 
 
-    def extract_and_save_features(self, save_path="cached_features.pt"):
-        self.model.eval()  # حالت ارزیابی چون قرار نیست وزنی تغییر کنه
+def extract_and_save_features(self, save_path="cached_features.pt"):
+        self.model.eval()  # حالت ارزیابی
         
-        # آرشیو برای جمع‌آوری بچ‌ها
         storage = {
             "outputs_coord": [],
             "outputs_coord_logits": [],
@@ -150,12 +149,12 @@ class Trainer(object):
             "inter_coord": [],
             "hs_2d_last": [],
             "hs_3d_last": [],
-            "targets": []  # ذخیره تارگت‌های مربوط به هر بچ جهت حفظ دقیق همخوانی
+            "targets": []
         }
 
         self.logger.info(">>>>>>> Extracting features from dataset...")
 
-        with torch.no_grad():  # غیرفعال کردن گراف محاسباتی برای حفظ سرعت و رم
+        with torch.no_grad():
             for batch_idx, (inputs, calibs, targets, info) in enumerate(tqdm.tqdm(self.train_loader)):
                 inputs = inputs.to(self.device)
                 calibs = calibs.to(self.device)
@@ -173,38 +172,45 @@ class Trainer(object):
                 # دریافت خروجی مدل و داده‌های استخراجی
                 _, extracted = self.model(inputs, calibs, prepared_targets, img_sizes, dn_args=dn_args)
 
-                # اضافه کردن ویژگی‌ها به آرشیو (انتقال به CPU برای پر نشدن GPU)
+                # اضافه کردن ویژگی‌ها به آرشیو
                 for key in extracted.keys():
                     storage[key].append(extracted[key].detach().cpu())
                 
-                # ذخیره تارگت‌ها همزمان با بچ جهت جلوگیری از هرگونه ناهماهنگی لیبل
                 storage["targets"].append(prepared_targets)
 
         self.logger.info(">>>>>>> Concatenating and saving to disk...")
 
-        # چسباندن بچ‌ها به صورت یکپارچه
+        # چسباندن دقیق و تفکیک‌شده تانسورها روی بعد بچ صحیح
         final_dataset = {}
+        
+        # لیست تانسورهایی که بعد لایه دارند [layers, batch, queries, ...] و باید روی dim=1 چسبانده شوند
+        layer_tensors = [
+            "outputs_coord", "outputs_coord_logits", "outputs_class", 
+            "outputs_3d_dim", "outputs_depth", "outputs_angle", 
+            "inter_class", "inter_coord"
+        ]
+
         for key in storage.keys():
             if key == "targets":
-                # لیست تارگت‌ها به همان ترتیب باقی می‌ماند
                 final_dataset[key] = storage[key]
+            elif key in layer_tensors:
+                # چسباندن روی dim=1 (بعد بچ در تانسورهای 4 بعد)
+                final_dataset[key] = torch.cat(storage[key], dim=1)
             else:
-                # چسباندن تانسورها روی بعد بچ‌ها (dim=1 یا dim=0 بسته به ساختار)
-                # برای تانسورهای چندبعدی DETR (مثل layer, batch, ...)، بعد بچ روی dim=1 قرار دارد
-                dim_to_cat = 1 if storage[key][0].dim() > 2 else 0
-                final_dataset[key] = torch.cat(storage[key], dim=dim_to_cat)
+                # تانسورهای hs_2d_last و hs_3d_last که 3 بعدی هستند [batch, queries, hidden_dim]
+                # باید حتماً روی dim=0 (بعد بچ) چسبانده شوند
+                final_dataset[key] = torch.cat(storage[key], dim=0)
 
         # ذخیره فایل نهایی روی دیسک
         torch.save(final_dataset, save_path)
         self.logger.info(f" Successfully saved all cached features to '{save_path}'!")
 
 
-
         
     def train(self):
 
-        # self.extract_and_save_features("cached_features.pt")
-        # return None  # جلوی اجرای بقیه کد و حلقه‌های آموزش را می‌گیرد
+        self.extract_and_save_features("cached_features.pt")
+        return None  # 
 
 
         start_epoch = self.epoch
