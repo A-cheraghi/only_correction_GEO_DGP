@@ -385,7 +385,7 @@ class MonoDGP(nn.Module):
         #     "hs_3d_last": hs[-1].detach().cpu(),
         # }
         # return out, extracted_data
-        return out, extracted_data
+        return out
 
 
 
