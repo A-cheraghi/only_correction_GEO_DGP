@@ -300,6 +300,7 @@ class MonoDGP(nn.Module):
         out['pred_depth_map_logits'] = pred_depth_map_logits
         out['pred_region_prob'] = region_probs
 
+        box_logits = outputs_coord_logits[-1] #extra
 
 
 
@@ -311,7 +312,6 @@ class MonoDGP(nn.Module):
 
         # box correction
         box_corr = self.box_correction(fusion_feature)
-        box_logits = outputs_coord_logits[-1]
         out['pred_boxes'] = (box_logits + box_corr).sigmoid()
 
         # dimension correction
@@ -341,6 +341,75 @@ class MonoDGP(nn.Module):
             out['aux_outputs'] = self._set_aux_loss(
                 outputs_class, outputs_coord, outputs_3d_dim, outputs_angle, outputs_depth) 
         
+
+
+        extracted_data = {
+            "outputs_coord": outputs_coord.detach().cpu(),
+            "outputs_coord_logits": outputs_coord_logits.detach().cpu(),
+            "outputs_class": outputs_class.detach().cpu(),
+            "outputs_3d_dim": outputs_3d_dim.detach().cpu(),
+            "outputs_depth": outputs_depth.detach().cpu(),
+            "outputs_angle": outputs_angle.detach().cpu(),
+            "inter_class": inter_class.detach().cpu(),
+            "inter_coord": inter_coord.detach().cpu(),
+            "hs_2d_last": hs_2d[-1].detach().cpu(),
+            "hs_3d_last": hs[-1].detach().cpu(),
+        }
+
+        return out, extracted_data
+
+
+
+    def forward_correction(self, data):
+
+        outputs_coord = data["outputs_coord"]
+        outputs_coord_logits = data["outputs_coord_logits"]
+        outputs_class = data["outputs_class"]
+        outputs_3d_dim = data["outputs_3d_dim"]
+        outputs_depth = data["outputs_depth"]
+        outputs_angle = data["outputs_angle"]
+        inter_class = data["inter_class"]
+        inter_coord = data["inter_coord"]
+
+        hs_2d_last = data["hs_2d_last"]
+        hs_3d_last = data["hs_3d_last"]
+
+        out = dict()
+        out['pred_logits'] = outputs_class[-1]
+        out['pred_boxes'] = outputs_coord[-1]
+        out['pred_3d_dim'] = outputs_3d_dim[-1]
+        out['pred_depth'] = outputs_depth[-1]
+        out['pred_angle'] = outputs_angle[-1]
+        box_logits = outputs_coord_logits[-1]
+
+        fusion = torch.cat([hs_2d_last, hs_3d_last], dim=-1)
+        fusion_feature = self.fusion_mlp(fusion)
+
+        # box correction
+        box_corr = self.box_correction(fusion_feature)
+        out['pred_boxes'] = (box_logits + box_corr).sigmoid()
+
+        # dimension correction
+        dim_corr = self.dim_correction(fusion_feature)
+        out['pred_3d_dim'] = out['pred_3d_dim'] + dim_corr
+
+        # depth correction
+        depth_corr = self.depth_correction(fusion_feature)
+        out['pred_depth'] = out['pred_depth'] + depth_corr
+
+        # angle correction
+        angle_corr = self.angle_correction(fusion_feature)
+        out['pred_angle'] = out['pred_angle'] + angle_corr
+
+        # class correction
+        class_corr = self.class_correction(fusion_feature)
+        out['pred_logits'] = out['pred_logits'] + class_corr
+
+        out['inter_outputs'] = self._set_inter_loss(inter_class, inter_coord)
+
+        if self.aux_loss:
+            out['aux_outputs'] = self._set_aux_loss(
+                outputs_class, outputs_coord, outputs_3d_dim, outputs_angle, outputs_depth)
         return out
 
     @torch.jit.unused

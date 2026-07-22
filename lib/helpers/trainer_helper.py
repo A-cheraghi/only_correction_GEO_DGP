@@ -131,8 +131,83 @@ class Trainer(object):
         self.logger.info(trainable)
 
 
+
+
+
+
+    def extract_and_save_features(self, save_path="cached_features.pt"):
+        self.model.eval()  # حالت ارزیابی چون قرار نیست وزنی تغییر کنه
+        
+        # آرشیو برای جمع‌آوری بچ‌ها
+        storage = {
+            "outputs_coord": [],
+            "outputs_coord_logits": [],
+            "outputs_class": [],
+            "outputs_3d_dim": [],
+            "outputs_depth": [],
+            "outputs_angle": [],
+            "inter_class": [],
+            "inter_coord": [],
+            "hs_2d_last": [],
+            "hs_3d_last": [],
+            "targets": []  # ذخیره تارگت‌های مربوط به هر بچ جهت حفظ دقیق همخوانی
+        }
+
+        print(">>>>>>> Extracting features from dataset...")
+
+        with torch.no_grad():  # غیرفعال کردن گراف محاسباتی برای حفظ سرعت و رم
+            for batch_idx, (inputs, calibs, targets, info) in enumerate(tqdm.tqdm(self.train_loader)):
+                inputs = inputs.to(self.device)
+                calibs = calibs.to(self.device)
+                for key in targets.keys():
+                    targets[key] = targets[key].to(self.device)
+                
+                img_sizes = targets['img_size']
+                prepared_targets = self.prepare_targets(targets, inputs.shape[0])
+                
+                dn_args = None
+                if self.cfg["use_dn"]:
+                    dn_args = (prepared_targets, self.cfg['scalar'], self.cfg['label_noise_scale'], 
+                            self.cfg['box_noise_scale'], self.cfg['num_patterns'])
+
+                # دریافت خروجی مدل و داده‌های استخراجی
+                _, extracted = self.model(inputs, calibs, prepared_targets, img_sizes, dn_args=dn_args)
+
+                # اضافه کردن ویژگی‌ها به آرشیو (انتقال به CPU برای پر نشدن GPU)
+                for key in extracted.keys():
+                    storage[key].append(extracted[key].detach().cpu())
+                
+                # ذخیره تارگت‌ها همزمان با بچ جهت جلوگیری از هرگونه ناهماهنگی لیبل
+                storage["targets"].append(prepared_targets)
+
+        print(">>>>>>> Concatenating and saving to disk...")
+
+        # چسباندن بچ‌ها به صورت یکپارچه
+        final_dataset = {}
+        for key in storage.keys():
+            if key == "targets":
+                # لیست تارگت‌ها به همان ترتیب باقی می‌ماند
+                final_dataset[key] = storage[key]
+            else:
+                # چسباندن تانسورها روی بعد بچ‌ها (dim=1 یا dim=0 بسته به ساختار)
+                # برای تانسورهای چندبعدی DETR (مثل layer, batch, ...)، بعد بچ روی dim=1 قرار دارد
+                dim_to_cat = 1 if storage[key][0].dim() > 2 else 0
+                final_dataset[key] = torch.cat(storage[key], dim=dim_to_cat)
+
+        # ذخیره فایل نهایی روی دیسک
+        torch.save(final_dataset, save_path)
+        print(f" Successfully saved all cached features to '{save_path}'!")
+
+
+
         
     def train(self):
+
+        self.extract_and_save_features("cached_features.pt")
+        print("استخراج داده‌ها با موفقیت تمام شد. خروج از برنامه.")
+        return None  # جلوی اجرای بقیه کد و حلقه‌های آموزش را می‌گیرد
+
+
         start_epoch = self.epoch
 
         progress_bar = tqdm.tqdm(range(start_epoch, self.cfg['max_epoch']), dynamic_ncols=True, leave=True, desc='epochs')
@@ -259,4 +334,9 @@ class Trainer(object):
                     target_dict[key] = val[bz]
             targets_list.append(target_dict)
         return targets_list
+
+
+
+
+
 
