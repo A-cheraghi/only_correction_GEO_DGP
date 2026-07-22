@@ -135,48 +135,60 @@ class Trainer(object):
 
 
 
-    def extract_and_save_features(self, save_dir="/content/cached_batches"):
-        
-        # ۱. ساخت پوشه ذخیره‌سازی در صورت عدم وجود
-        os.makedirs(save_dir, exist_ok=True)
-        
-        # حتماً حالت مدل را مطابق با اجرایت تنظیم کن (مثلاً train یا eval)
-        self.model.train()
+def extract_and_save_features(self, save_path="/content/cached_features_unified.pt"):
+    self.model.eval()
+    self.logger.info(f">>>>> Extracting features to single file '{save_path}'...")
 
-        self.logger.info(f">>>>>>> Extracting and saving features batch by batch to '{save_dir}'...")
+    # ۱. ساخت دیکشنری با لیست‌های خالی برای جمع‌آوری
+    collected_data = {}
+    targets_list = []
 
-        with torch.no_grad():
-            for batch_idx, (inputs, calibs, targets, info) in enumerate(tqdm.tqdm(self.train_loader)):
-                inputs = inputs.to(self.device)
-                calibs = calibs.to(self.device)
-                for key in targets.keys():
-                    targets[key] = targets[key].to(self.device)
-                
-                img_sizes = targets['img_size']
-                prepared_targets = self.prepare_targets(targets, inputs.shape[0])
-                
-                dn_args = None
-                if self.cfg["use_dn"]:
-                    dn_args = (prepared_targets, self.cfg['scalar'], self.cfg['label_noise_scale'], 
-                            self.cfg['box_noise_scale'], self.cfg['num_patterns'])
+    with torch.no_grad():
+        for batch_idx, (inputs, calibs, targets, info) in enumerate(tqdm.tqdm(self.train_loader)):
+            inputs = inputs.to(self.device)
+            calibs = calibs.to(self.device)
+            for key in targets.keys():
+                targets[key] = targets[key].to(self.device)
+            
+            img_sizes = targets['img_size']
+            prepared_targets = self.prepare_targets(targets, inputs.shape[0])
+            
+            # اجرای مدل
+            _, extracted = self.model(inputs, calibs, prepared_targets, img_sizes)
 
-                # دریافت خروجی مدل و داده‌های استخراجی
-                _, extracted = self.model(inputs, calibs, prepared_targets, img_sizes, dn_args=dn_args)
-
-                # ساخت دیکشنری مخصوص همین بچ
-                batch_data = {}
+            # مقداردهی کلیدها در بچ اول
+            if batch_idx == 0:
                 for key in extracted.keys():
-                    # تمام تانسورها بدون هیچ تغییر یا چسباندنی به CPU منتقل می‌شوند
-                    batch_data[key] = extracted[key].detach().cpu()
-                
-                # ذخیره تارگت‌های مربوط به همین بچ
-                batch_data["targets"] = prepared_targets
+                    collected_data[key] = []
 
-                # ۲. ذخیره مستقیم هر بچ در یک فایل جداگانه
-                batch_file_path = os.path.join(save_dir, f"batch_{batch_idx}.pt")
-                torch.save(batch_data, batch_file_path)
+            # ۲. اپند کردن ساده به لیست روی CPU
+            for key in extracted.keys():
+                collected_data[key].append(extracted[key].detach().cpu())
+            
+            targets_list.append(prepared_targets)
 
-        self.logger.info(f" Successfully saved all batches to '{save_dir}'!")
+    # ۳. تبدیل لیست‌ها به یک تانسور یکپارچه
+    self.logger.info("Combining features into single tensors...")
+    final_dataset = {}
+
+    # لیست کلیدهایی که ۴بعدی هستند (بعد بچ روی dim=1 است)
+    layer_tensors = [
+        "outputs_coord", "outputs_coord_logits", "outputs_class", 
+        "outputs_3d_dim", "outputs_depth", "outputs_angle", 
+        "inter_class", "inter_coord"
+    ]
+
+    for key, val_list in collected_data.items():
+        if key in layer_tensors:
+            final_dataset[key] = torch.cat(val_list, dim=1)
+        else:
+            final_dataset[key] = torch.cat(val_list, dim=0)
+
+    final_dataset["targets"] = targets_list
+
+    # ۴. ذخیره تک‌فایل نهایی
+    torch.save(final_dataset, save_path, _use_new_zipfile_serialization=True)
+    self.logger.info(f" Successfully saved unified dataset to '{save_path}'!")
 
 
         
