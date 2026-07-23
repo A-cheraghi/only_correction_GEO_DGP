@@ -45,6 +45,7 @@ def main():
     train_loader, test_loader = build_dataloader(cfg['dataset'])
 
     # train_batches, val_batches = prepare_batched_cached_data(cfg['dataset'])
+    train_batches, val_batches=0,0
 
     # build model
     model, loss = build_model(cfg['model'])
