@@ -362,8 +362,8 @@ class MonoDGP(nn.Module):
             if hasattr(pred_depth_map_logits, 'shape'):
                 f.write(f"shape pred_depth_map_logits: {pred_depth_map_logits.shape}\n")
         
-        print("✅ اطلاعات متغیرها در /content/debug_info.txt ذخیره شد.")
-        import sys; sys.exit(0) # متوقف کردن اجرای برنامه
+        # print("✅ اطلاعات متغیرها در /content/debug_info.txt ذخیره شد.")
+        # import sys; sys.exit(0) # متوقف کردن اجرای برنامه
 
 
 
@@ -382,8 +382,8 @@ class MonoDGP(nn.Module):
             "inter_coord": inter_coord.detach().cpu(),
             "hs_2d_last": hs_2d[-1].detach().cpu(),
             "hs_3d_last": hs[-1].detach().cpu(),
-            "pred_depth_map_logits": pred_depth_map_logits.detach().cpu(),
-            "region_probs": region_probs.detach().cpu(),
+            # "pred_depth_map_logits": pred_depth_map_logits.detach().cpu(),
+            # "region_probs": region_probs.detach().cpu(),
         }
         return out, extracted_data
         # return out
