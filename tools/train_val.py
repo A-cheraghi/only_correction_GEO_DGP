@@ -223,12 +223,9 @@ def main():
 from torch.utils.data import Dataset, DataLoader
 
 class BatchedCachedDataset:
-    """
-    این کلاس داده‌ها را بدون هیچ جابه‌جایی (بدون Shuffle) و دقیقاً با همان اندیس‌های start:end
-    به صورت Lazy اسلایس می‌زند تا رم سیستم پر نشود.
-    """
     def __init__(self, cached_data_path, batch_size, layer_tensors):
-        self.cached_data = torch.load(cached_data_path, map_location="cpu")
+        # 👈 مپ کردن فایل روی دیسک بدون اشغال رم! (mmap=True)
+        self.cached_data = torch.load(cached_data_path, map_location="cpu", weights_only=False, mmap=True)
         self.batch_size = batch_size
         self.layer_tensors = layer_tensors
         self.total_samples = self.cached_data["hs_2d_last"].shape[0]
@@ -244,12 +241,10 @@ class BatchedCachedDataset:
         batch_dict = {}
         for key, val in self.cached_data.items():
             if key == "region_probs":
-                # اسلایس زدن روی بعد بچ برای تک‌تک 4 لایه داخل لیست region_probs
                 batch_dict[key] = [layer_tensor[start:end] for layer_tensor in val]
             elif key in self.layer_tensors:
                 batch_dict[key] = val[:, start:end]
             else:
-                # شامل pred_depth_map_logits، hs_2d_last و سایر تانسورهای معمولی
                 batch_dict[key] = val[start:end]
                 
         return batch_dict
