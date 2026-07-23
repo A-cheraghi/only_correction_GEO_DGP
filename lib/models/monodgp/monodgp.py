@@ -416,7 +416,8 @@ class MonoDGP(nn.Module):
         outputs_angle = data["outputs_angle"]
         inter_class = data["inter_class"]
         inter_coord = data["inter_coord"]
-
+        pred_depth_map_logits = data["pred_depth_map_logits"]
+        region_probs = data["region_probs"]
         hs_2d_last = data["hs_2d_last"]
         hs_3d_last = data["hs_3d_last"]
 
@@ -427,6 +428,8 @@ class MonoDGP(nn.Module):
         out['pred_depth'] = outputs_depth[-1]
         out['pred_angle'] = outputs_angle[-1]
         box_logits = outputs_coord_logits[-1]
+        out['pred_depth_map_logits'] = pred_depth_map_logits
+        out['pred_region_prob'] = region_probs
 
         fusion = torch.cat([hs_2d_last, hs_3d_last], dim=-1)
         fusion_feature = self.fusion_mlp(fusion)

@@ -204,8 +204,8 @@ class Trainer(object):
         
     def train(self):
 
-        self.extract_and_save_features()
-        return None  
+        # self.extract_and_save_features()
+        # return None  
 
 
         start_epoch = self.epoch
@@ -278,7 +278,12 @@ class Trainer(object):
             ###
             # train one batch
 
-            batch_cached_data = {k: v.to(self.device) for k, v in self.train_batches[batch_idx].items()}
+            batch_cached_data = {}
+            for k, v in self.train_batches[batch_idx].items():
+                if isinstance(v, list):
+                    batch_cached_data[k] = [item.to(self.device) for item in v]
+                else:
+                    batch_cached_data[k] = v.to(self.device)
 
             self.optimizer.zero_grad()
             outputs = self.model.forward_correction(batch_cached_data)
