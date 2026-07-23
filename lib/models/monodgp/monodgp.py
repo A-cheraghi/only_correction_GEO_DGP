@@ -345,23 +345,6 @@ class MonoDGP(nn.Module):
 
 
 # =========================================================
-        sample_in_batch = 0  # <--- تغییر اندیس تصویر درون بچ
-
-        log_text = (
-            "\n" + "="*60 + "\n"
-            f">>> LIVE FORWARD OUTPUTS (Sample {sample_in_batch} in Current Batch, Query 0) <<<\n"
-            + "="*60 + "\n"
-            f"outputs_coord (Last Layer): {outputs_coord[-1, sample_in_batch, 0].detach().cpu().numpy()}\n"
-            f"hs_2d_last (First 10):       {hs_2d[-1][sample_in_batch, 0, :10].detach().cpu().numpy()}\n"
-            f"hs_3d_last (First 10):       {hs[-1][sample_in_batch, 0, :10].detach().cpu().numpy()}\n"
-            + "="*60 + "\n"
-        )
-
-        # ذخیره مستقیم در فایل متنی داخل /content
-        with open("/content/live_debug.txt", "a") as f:
-            f.write(log_text)
-
-
 # --- کد بررسی دقیق نوع و ابعاد متغیرها ---
         with open("/content/debug_info.txt", "w") as f:
             f.write(f"type(region_probs): {type(region_probs)}\n")
@@ -379,8 +362,11 @@ class MonoDGP(nn.Module):
             if hasattr(pred_depth_map_logits, 'shape'):
                 f.write(f"shape pred_depth_map_logits: {pred_depth_map_logits.shape}\n")
         
-        # print("✅ اطلاعات متغیرها در /content/debug_info.txt ذخیره شد.")
-        # import sys; sys.exit(0) # متوقف کردن اجرای برنامه
+        print("✅ اطلاعات متغیرها در /content/debug_info.txt ذخیره شد.")
+        import sys; sys.exit(0) # متوقف کردن اجرای برنامه
+
+
+
 
 
         # =========================================================
