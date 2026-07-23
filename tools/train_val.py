@@ -209,7 +209,7 @@ def prepare_batched_cached_data(cfg):
         return batched_list
 
     # ساخت بچ‌ها برای هر دو مجموعه داده
-    # train_batches = create_batches_for_split('train')
+    train_batches = create_batches_for_split('train')
     val_batches = create_batches_for_split('val')
 
     return train_batches, val_batches
