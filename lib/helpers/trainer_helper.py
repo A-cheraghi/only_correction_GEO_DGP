@@ -23,7 +23,8 @@ class Trainer(object):
                  warmup_lr_scheduler,
                  logger,
                  loss,
-                 model_name):
+                 model_name,
+                 train_batches):
         self.cfg = cfg
         self.model = model
         self.optimizer = optimizer
@@ -40,6 +41,8 @@ class Trainer(object):
         self.model_name = model_name
         self.output_dir = os.path.join('./' + cfg['save_path'], model_name)
         self.tester = None
+        self.train_batches = train_batches
+
 
         # loading pretrain/resume model
         if cfg.get('pretrain_model'):
@@ -261,8 +264,13 @@ class Trainer(object):
                 dn_args=(targets, self.cfg['scalar'], self.cfg['label_noise_scale'], self.cfg['box_noise_scale'], self.cfg['num_patterns'])
             ###
             # train one batch
+
+            batch_cached_data = {k: v.to(self.device) for k, v in self.train_batches[batch_idx].items()}
+
             self.optimizer.zero_grad()
-            outputs = self.model(inputs, calibs, targets, img_sizes, dn_args=dn_args)
+            outputs = self.model.forward_correction(batch_cached_data)
+            # outputs = self.model(inputs, calibs, targets, img_sizes, dn_args=dn_args)
+
             mask_dict=None
             #ipdb.set_trace()
             detr_losses_dict = self.detr_loss(outputs, targets, mask_dict)

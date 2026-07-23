@@ -44,6 +44,10 @@ def main():
     # build dataloader
     train_loader, test_loader = build_dataloader(cfg['dataset'])
 
+    train_batches, val_batches = prepare_batched_cached_data(cfg['dataset'])
+    inspect_batch_sample(train_batches, batch_idx=0, sample_idx_in_batch=0)
+
+
     # build model
     model, loss = build_model(cfg['model'])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -61,7 +65,8 @@ def main():
                         dataloader=test_loader,
                         logger=logger,
                         train_cfg=cfg['trainer'],
-                        model_name=model_name)
+                        model_name=model_name,
+                        val_batches=val_batches)
         tester.test()
         return
     #ipdb.set_trace()
@@ -79,14 +84,16 @@ def main():
                       warmup_lr_scheduler=warmup_lr_scheduler,
                       logger=logger,
                       loss=loss,
-                      model_name=model_name,)
+                      model_name=model_name,
+                      train_batches=train_batches)
 
     tester = Tester(cfg=cfg['tester'],
                     model=trainer.model,
                     dataloader=test_loader,
                     logger=logger,
                     train_cfg=cfg['trainer'],
-                    model_name=model_name)
+                    model_name=model_name,
+                    val_batches=val_batches)
     if cfg['dataset']['test_split'] != 'test':
         trainer.tester = tester
 
@@ -105,6 +112,104 @@ def main():
 
     tester.test()
 
+
+
+# --- ۱. تعریف تابع ساخت بچ‌ها (خارج از main) ---
+def prepare_batched_cached_data(cfg):
+    """
+    فایل‌های کش‌شده train و val را می‌خواند و هر دو را به صورت بچ‌بندی شده برمی‌گرداند.
+    """
+    root_dir = cfg['root_dir']
+    batch_size = cfg['batch_size']
+    
+    # لیست کلیدهای ۴بعدی که بعد نمونه‌ها در آن‌ها dim=1 است
+    layer_tensors = [
+        "outputs_coord", "outputs_coord_logits", "outputs_class", 
+        "outputs_3d_dim", "outputs_depth", "outputs_angle", 
+        "inter_class", "inter_coord"
+    ]
+
+    def create_batches_for_split(split_name):
+        file_name = f"cached_features_{split_name}_unified.pt"
+        cached_data_path = os.path.join(root_dir, file_name)
+        
+        cached_data = torch.load(cached_data_path, map_location="cpu")
+        
+        total_samples = cached_data["hs_2d_last"].shape[0]
+        num_batches = (total_samples + batch_size - 1) // batch_size
+        
+        batched_list = []
+        for b in range(num_batches):
+            start = b * batch_size
+            end = min(start + batch_size, total_samples)
+            
+            batch_dict = {}
+            for key, tensor in cached_data.items():
+                if key in layer_tensors:
+                    batch_dict[key] = tensor[:, start:end]
+                else:
+                    batch_dict[key] = tensor[start:end]
+                    
+            batched_list.append(batch_dict)
+            
+        return batched_list
+
+    # ساخت بچ‌ها برای هر دو مجموعه داده
+    train_batches = create_batches_for_split('train')
+    val_batches = create_batches_for_split('val')
+
+    return train_batches, val_batches
+
+def inspect_batch_sample(batched_data, batch_idx, sample_idx_in_batch):
+    """
+    بررسی و پرینت اطلاعات یک نمونه مشخص درون یک بچ خاص.
+    
+    :param batched_data: لیست بچ‌های ساخته شده (train_batches یا val_batches)
+    :param batch_idx: اندیس بچ مورد نظر (مثلاً 0)
+    :param sample_idx_in_batch: شماره نمونه در آن بچ (مثلاً 2)
+    """
+    if batch_idx >= len(batched_data):
+        print(f"❌ خطا: اندیس بچ {batch_idx} وجود ندارد! (تعداد کل بچ‌ها: {len(batched_data)})")
+        return
+    
+    batch = batched_data[batch_idx]
+    
+    # گرفتن سایز واقعی بچ (مثلا از روی اولین کلید)
+    first_key = list(batch.keys())[0]
+    # برای تانسورهای ۴بعدی بعد ۱ سایز بچ است، برای ۳بعدی بعد ۰
+    batch_size = batch["outputs_coord"].shape[1] if "outputs_coord" in batch else batch[first_key].shape[0]
+
+    if sample_idx_in_batch >= batch_size:
+        print(f"❌ خطا: شماره نمونه {sample_idx_in_batch} در این بچ وجود ندارد! (سایز این بچ: {batch_size})")
+        return
+
+    print(f"\n🔍 --- بررسی نمونه شماره {sample_idx_in_batch} در بچ {batch_idx} ---")
+    print(f"سایز کل این بچ: {batch_size}\n")
+    
+    layer_tensors = [
+        "outputs_coord", "outputs_coord_logits", "outputs_class", 
+        "outputs_3d_dim", "outputs_depth", "outputs_angle", 
+        "inter_class", "inter_coord"
+    ]
+
+    for key, tensor in batch.items():
+        if key in layer_tensors:
+            # تانسورهای ۴بعدی: [Layers, Batch_Size, Queries, Dim]
+            sample_tensor = tensor[:, sample_idx_in_batch]
+            print(f"🔹 {key:22s} | شکل داده نمونه: {tuple(sample_tensor.shape):18s} | (شکل کل بچ: {tuple(tensor.shape)})")
+        else:
+            # تانسورهای ۳بعدی: [Batch_Size, Queries, Dim]
+            sample_tensor = tensor[sample_idx_in_batch]
+            print(f"🔹 {key:22s} | شکل داده نمونه: {tuple(sample_tensor.shape):18s} | (شکل کل بچ: {tuple(tensor.shape)})")
+
+    print("\n✅ بررسی با موفقیت انجام شد.")
+
+
+# ==========================================
+# نحوه استفاده (مثلا بعد از دریافت train_batches)
+# ==========================================
+
+# مثال: پرینت نمونه شماره 2 در بچ شماره 0
 
 if __name__ == '__main__':
     main()

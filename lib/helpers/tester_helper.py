@@ -10,7 +10,7 @@ import time
 
 
 class Tester(object):
-    def __init__(self, cfg, model, dataloader, logger, train_cfg=None, model_name='monodgp'):
+    def __init__(self, cfg, model, dataloader, logger, train_cfg=None, model_name='monodgp', val_batches=None):
         self.cfg = cfg
         self.model = model
         self.dataloader = dataloader
@@ -22,6 +22,7 @@ class Tester(object):
         self.logger = logger
         self.train_cfg = train_cfg
         self.model_name = model_name
+        self.val_batches = val_batches
 
     def test(self):
         assert self.cfg['mode'] in ['single', 'all']
@@ -75,9 +76,14 @@ class Tester(object):
             calibs = calibs.to(self.device)
             img_sizes = info['img_size'].to(self.device)
 
+            batch_cached_data = {k: v.to(self.device) for k, v in self.val_batches[batch_idx].items()}
+
             start_time = time.time()
             ###dn
-            outputs = self.model(inputs, calibs, targets, img_sizes, dn_args = 0)
+
+            outputs = self.model.forward_correction(batch_cached_data)
+
+            # outputs = self.model(inputs, calibs, targets, img_sizes, dn_args = 0)
             ###
             end_time = time.time()
             model_infer_time += end_time - start_time
