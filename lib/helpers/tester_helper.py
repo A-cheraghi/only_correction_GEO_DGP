@@ -76,13 +76,18 @@ class Tester(object):
             calibs = calibs.to(self.device)
             img_sizes = info['img_size'].to(self.device)
 
-            batch_cached_data = {k: v.to(self.device) for k, v in self.val_batches[batch_idx].items()}
+            # 🛑 اصلاح اصلی: پشتیبانی از لیست region_probs برای ارسال به GPU
+            batch_cached_data = {}
+            for k, v in self.val_batches[batch_idx].items():
+                if isinstance(v, list):
+                    batch_cached_data[k] = [item.to(self.device) for item in v]
+                else:
+                    batch_cached_data[k] = v.to(self.device)
 
             start_time = time.time()
             ###dn
 
             outputs = self.model.forward_correction(batch_cached_data)
-
             # outputs = self.model(inputs, calibs, targets, img_sizes, dn_args = 0)
             ###
             end_time = time.time()
