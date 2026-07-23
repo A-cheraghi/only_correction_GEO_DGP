@@ -345,26 +345,46 @@ class MonoDGP(nn.Module):
 
 
 # =========================================================
-        sample_in_batch = 0  # <--- تغییر اندیس تصویر درون بچ
+        sample_in_batch = 0  # اندیس تصویر درون بچ
+
+        # دریافت ایمن لایه آخر یا تانسور
+        def get_sample(tensor):
+            if tensor.ndim == 4:  # [Layers, Batch_Size, Queries, Dim]
+                return tensor[-1, sample_in_batch, 0, :5].detach().cpu().numpy()
+            elif tensor.ndim == 3:  # [Batch_Size, Queries, Dim]
+                return tensor[sample_in_batch, 0, :5].detach().cpu().numpy()
+            elif tensor.ndim == 2:  # [Batch_Size, Dim]
+                return tensor[sample_in_batch, :5].detach().cpu().numpy()
+            else:
+                return tensor[sample_in_batch].flatten()[:5].detach().cpu().numpy()
 
         log_text = (
-            "\n" + "="*60 + "\n"
-            f">>> LIVE FORWARD OUTPUTS (Sample {sample_in_batch} in Current Batch, Query 0) <<<\n"
-            + "="*60 + "\n"
-            f"outputs_coord (Last Layer): {outputs_coord[-1, sample_in_batch, 0].detach().cpu().numpy()}\n"
-            f"hs_2d_last (First 10):       {hs_2d[-1][sample_in_batch, 0, :10].detach().cpu().numpy()}\n"
-            f"hs_3d_last (First 10):       {hs[-1][sample_in_batch, 0, :10].detach().cpu().numpy()}\n"
-            + "="*60 + "\n"
+            "\n" + "="*70 + "\n"
+            f">>> LIVE FORWARD OUTPUTS (Sample {sample_in_batch} in Current Batch) <<<\n"
+            + "="*70 + "\n"
+            f"🔹 outputs_coord (Layer Last, Q0, First 4) : {get_sample(outputs_coord)[:4]}\n"
+            f"🔹 outputs_coord_logits (Last, Q0, First 4): {get_sample(outputs_coord_logits)[:4]}\n"
+            f"🔹 outputs_class (Layer Last, Q0, First 3)  : {get_sample(outputs_class)[:3]}\n"
+            f"🔹 outputs_3d_dim (Layer Last, Q0, All 3)  : {get_sample(outputs_3d_dim)[:3]}\n"
+            f"🔹 outputs_depth (Layer Last, Q0, All 2)  : {get_sample(outputs_depth)[:2]}\n"
+            f"🔹 outputs_angle (Layer Last, Q0, All 2)  : {get_sample(outputs_angle)[:2]}\n"
+            f"🔹 inter_class (Layer Last, Q0, First 3)   : {get_sample(inter_class)[:3]}\n"
+            f"🔹 inter_coord (Layer Last, Q0, First 4)   : {get_sample(inter_coord)[:4]}\n"
+            f"🔹 hs_2d_last (Q0, First 5)               : {hs_2d[-1][sample_in_batch, 0, :5].detach().cpu().numpy()}\n"
+            f"🔹 hs_3d_last (Q0, First 5)               : {hs[-1][sample_in_batch, 0, :5].detach().cpu().numpy()}\n"
+            f"🔹 pred_depth_map_logits (First 5)        : {pred_depth_map_logits[sample_in_batch].flatten()[:5].detach().cpu().numpy()}\n"
         )
+
+        # اضافه کردن خلاصه لایه‌های region_probs
+        log_text += "🔹 region_probs (First 4 values per layer):\n"
+        for idx, r_prob in enumerate(region_probs):
+            log_text += f"    └─ Layer {idx}: {r_prob[sample_in_batch].flatten()[:4].detach().cpu().numpy()}\n"
+
+        log_text += "="*70 + "\n"
 
         # ذخیره مستقیم در فایل متنی داخل /content
         with open("/content/live_debug.txt", "a") as f:
             f.write(log_text)
-
-
-
-
-
         # =========================================================
 
         extracted_data = {

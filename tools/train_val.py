@@ -44,9 +44,9 @@ def main():
     # build dataloader
     train_loader, test_loader = build_dataloader(cfg['dataset'])
 
-    train_batches, val_batches=0,0
+    train_batches, val_batches = 0 , 0
     # train_batches, val_batches = prepare_batched_cached_data(cfg['dataset'])
-    
+    # train_batches= prepare_batched_cached_data(cfg['dataset'])
 
     # build model
     model, loss = build_model(cfg['model'])
@@ -144,11 +144,15 @@ def prepare_batched_cached_data(cfg):
             end = min(start + batch_size, total_samples)
             
             batch_dict = {}
-            for key, tensor in cached_data.items():
-                if key in layer_tensors:
-                    batch_dict[key] = tensor[:, start:end]
+            for key, val in cached_data.items():
+                if key == "region_probs":
+                    # اسلایس زدن روی بعد بچ برای تک‌تک 4 لایه داخل لیست region_probs
+                    batch_dict[key] = [layer_tensor[start:end] for layer_tensor in val]
+                elif key in layer_tensors:
+                    batch_dict[key] = val[:, start:end]
                 else:
-                    batch_dict[key] = tensor[start:end]
+                    # شامل pred_depth_map_logits، hs_2d_last و سایر تانسورهای معمولی
+                    batch_dict[key] = val[start:end]
                     
             batched_list.append(batch_dict)
             
@@ -156,11 +160,12 @@ def prepare_batched_cached_data(cfg):
 
     # ساخت بچ‌ها برای هر دو مجموعه داده
     train_batches = create_batches_for_split('train')
-    val_batches = create_batches_for_split('val')
+    # val_batches = create_batches_for_split('val')
 
-    return train_batches, val_batches
-
+    # return train_batches, val_batches
+    return train_batches
 
 
 if __name__ == '__main__':
     main()
+
