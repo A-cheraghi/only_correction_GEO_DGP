@@ -345,21 +345,21 @@ class MonoDGP(nn.Module):
 
 
 # =========================================================
-        # sample_in_batch = 0  # <--- تغییر اندیس تصویر درون بچ
+        sample_in_batch = 0  # <--- تغییر اندیس تصویر درون بچ
 
-        # log_text = (
-        #     "\n" + "="*60 + "\n"
-        #     f">>> LIVE FORWARD OUTPUTS (Sample {sample_in_batch} in Current Batch, Query 0) <<<\n"
-        #     + "="*60 + "\n"
-        #     f"outputs_coord (Last Layer): {outputs_coord[-1, sample_in_batch, 0].detach().cpu().numpy()}\n"
-        #     f"hs_2d_last (First 10):       {hs_2d[-1][sample_in_batch, 0, :10].detach().cpu().numpy()}\n"
-        #     f"hs_3d_last (First 10):       {hs[-1][sample_in_batch, 0, :10].detach().cpu().numpy()}\n"
-        #     + "="*60 + "\n"
-        # )
+        log_text = (
+            "\n" + "="*60 + "\n"
+            f">>> LIVE FORWARD OUTPUTS (Sample {sample_in_batch} in Current Batch, Query 0) <<<\n"
+            + "="*60 + "\n"
+            f"outputs_coord (Last Layer): {outputs_coord[-1, sample_in_batch, 0].detach().cpu().numpy()}\n"
+            f"hs_2d_last (First 10):       {hs_2d[-1][sample_in_batch, 0, :10].detach().cpu().numpy()}\n"
+            f"hs_3d_last (First 10):       {hs[-1][sample_in_batch, 0, :10].detach().cpu().numpy()}\n"
+            + "="*60 + "\n"
+        )
 
-        # # ذخیره مستقیم در فایل متنی داخل /content
-        # with open("/content/live_debug.txt", "a") as f:
-        #     f.write(log_text)
+        # ذخیره مستقیم در فایل متنی داخل /content
+        with open("/content/live_debug.txt", "a") as f:
+            f.write(log_text)
 
 
 
@@ -367,20 +367,22 @@ class MonoDGP(nn.Module):
 
         # =========================================================
 
-        # extracted_data = {
-        #     "outputs_coord": outputs_coord.detach().cpu(),
-        #     "outputs_coord_logits": outputs_coord_logits.detach().cpu(),
-        #     "outputs_class": outputs_class.detach().cpu(),
-        #     "outputs_3d_dim": outputs_3d_dim.detach().cpu(),
-        #     "outputs_depth": outputs_depth.detach().cpu(),
-        #     "outputs_angle": outputs_angle.detach().cpu(),
-        #     "inter_class": inter_class.detach().cpu(),
-        #     "inter_coord": inter_coord.detach().cpu(),
-        #     "hs_2d_last": hs_2d[-1].detach().cpu(),
-        #     "hs_3d_last": hs[-1].detach().cpu(),
-        # }
-        # return out, extracted_data
-        return out
+        extracted_data = {
+            "outputs_coord": outputs_coord.detach().cpu(),
+            "outputs_coord_logits": outputs_coord_logits.detach().cpu(),
+            "outputs_class": outputs_class.detach().cpu(),
+            "outputs_3d_dim": outputs_3d_dim.detach().cpu(),
+            "outputs_depth": outputs_depth.detach().cpu(),
+            "outputs_angle": outputs_angle.detach().cpu(),
+            "inter_class": inter_class.detach().cpu(),
+            "inter_coord": inter_coord.detach().cpu(),
+            "hs_2d_last": hs_2d[-1].detach().cpu(),
+            "hs_3d_last": hs[-1].detach().cpu(),
+            "pred_depth_map_logits": pred_depth_map_logits.detach().cpu(),
+            "region_probs": region_probs.detach().cpu(),
+        }
+        return out, extracted_data
+        # return out
 
 
 
@@ -398,6 +400,9 @@ class MonoDGP(nn.Module):
         hs_2d_last = data["hs_2d_last"]
         hs_3d_last = data["hs_3d_last"]
 
+        pred_depth_map_logits = data["pred_depth_map_logits"]
+        region_probs = data["region_probs"]
+
         out = dict()
         out['pred_logits'] = outputs_class[-1]
         out['pred_boxes'] = outputs_coord[-1]
@@ -405,6 +410,9 @@ class MonoDGP(nn.Module):
         out['pred_depth'] = outputs_depth[-1]
         out['pred_angle'] = outputs_angle[-1]
         box_logits = outputs_coord_logits[-1]
+
+        out['pred_depth_map_logits'] = pred_depth_map_logits 
+        out['pred_region_prob'] = region_probs
 
         fusion = torch.cat([hs_2d_last, hs_3d_last], dim=-1)
         fusion_feature = self.fusion_mlp(fusion)
