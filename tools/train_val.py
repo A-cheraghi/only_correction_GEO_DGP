@@ -165,9 +165,100 @@ def main():
 
 
 # --- ۱. تعریف تابع ساخت بچ‌ها (خارج از main) ---
+# def prepare_batched_cached_data(cfg):
+#     """
+#     فایل‌های کش‌شده train و val را می‌خواند و هر دو را به صورت بچ‌بندی شده برمی‌گرداند.
+#     """
+#     root_dir = cfg['root_dir']
+#     batch_size = cfg['batch_size']
+    
+#     # لیست کلیدهای ۴بعدی که بعد نمونه‌ها در آن‌ها dim=1 است
+#     layer_tensors = [
+#         "outputs_coord", "outputs_coord_logits", "outputs_class", 
+#         "outputs_3d_dim", "outputs_depth", "outputs_angle", 
+#         "inter_class", "inter_coord"
+#     ]
+
+#     def create_batches_for_split(split_name):
+#         file_name = f"cached_features_{split_name}_unified.pt"
+#         cached_data_path = os.path.join(root_dir, file_name)
+        
+#         cached_data = torch.load(cached_data_path, map_location="cpu")
+        
+#         total_samples = cached_data["hs_2d_last"].shape[0]
+#         num_batches = (total_samples + batch_size - 1) // batch_size
+        
+#         batched_list = []
+#         for b in range(num_batches):
+#             start = b * batch_size
+#             end = min(start + batch_size, total_samples)
+            
+#             batch_dict = {}
+#             for key, val in cached_data.items():
+#                 if key == "region_probs":
+#                     # اسلایس زدن روی بعد بچ برای تک‌تک 4 لایه داخل لیست region_probs
+#                     batch_dict[key] = [layer_tensor[start:end] for layer_tensor in val]
+#                 elif key in layer_tensors:
+#                     batch_dict[key] = val[:, start:end]
+#                 else:
+#                     # شامل pred_depth_map_logits، hs_2d_last و سایر تانسورهای معمولی
+#                     batch_dict[key] = val[start:end]
+                    
+#             batched_list.append(batch_dict)
+            
+#         return batched_list
+
+#     # ساخت بچ‌ها برای هر دو مجموعه داده
+#     train_batches = create_batches_for_split('train')
+#     val_batches = create_batches_for_split('val')
+
+#     return train_batches, val_batches
+#     # return val_batches
+
+
+
+
+
+
+from torch.utils.data import Dataset, DataLoader
+
+class BatchedCachedDataset:
+    """
+    این کلاس داده‌ها را بدون هیچ جابه‌جایی (بدون Shuffle) و دقیقاً با همان اندیس‌های start:end
+    به صورت Lazy اسلایس می‌زند تا رم سیستم پر نشود.
+    """
+    def __init__(self, cached_data_path, batch_size, layer_tensors):
+        self.cached_data = torch.load(cached_data_path, map_location="cpu")
+        self.batch_size = batch_size
+        self.layer_tensors = layer_tensors
+        self.total_samples = self.cached_data["hs_2d_last"].shape[0]
+        self.num_batches = (self.total_samples + batch_size - 1) // batch_size
+
+    def __len__(self):
+        return self.num_batches
+
+    def __getitem__(self, idx):
+        start = idx * self.batch_size
+        end = min(start + self.batch_size, self.total_samples)
+        
+        batch_dict = {}
+        for key, val in self.cached_data.items():
+            if key == "region_probs":
+                # اسلایس زدن روی بعد بچ برای تک‌تک 4 لایه داخل لیست region_probs
+                batch_dict[key] = [layer_tensor[start:end] for layer_tensor in val]
+            elif key in self.layer_tensors:
+                batch_dict[key] = val[:, start:end]
+            else:
+                # شامل pred_depth_map_logits، hs_2d_last و سایر تانسورهای معمولی
+                batch_dict[key] = val[start:end]
+                
+        return batch_dict
+
+
 def prepare_batched_cached_data(cfg):
     """
     فایل‌های کش‌شده train و val را می‌خواند و هر دو را به صورت بچ‌بندی شده برمی‌گرداند.
+    ترتیب داده‌ها ۱۰۰٪ ثابت و بدون هیچ‌گونه shuffle حفظ می‌شود.
     """
     root_dir = cfg['root_dir']
     batch_size = cfg['batch_size']
@@ -183,37 +274,14 @@ def prepare_batched_cached_data(cfg):
         file_name = f"cached_features_{split_name}_unified.pt"
         cached_data_path = os.path.join(root_dir, file_name)
         
-        cached_data = torch.load(cached_data_path, map_location="cpu")
-        
-        total_samples = cached_data["hs_2d_last"].shape[0]
-        num_batches = (total_samples + batch_size - 1) // batch_size
-        
-        batched_list = []
-        for b in range(num_batches):
-            start = b * batch_size
-            end = min(start + batch_size, total_samples)
-            
-            batch_dict = {}
-            for key, val in cached_data.items():
-                if key == "region_probs":
-                    # اسلایس زدن روی بعد بچ برای تک‌تک 4 لایه داخل لیست region_probs
-                    batch_dict[key] = [layer_tensor[start:end] for layer_tensor in val]
-                elif key in layer_tensors:
-                    batch_dict[key] = val[:, start:end]
-                else:
-                    # شامل pred_depth_map_logits، hs_2d_last و سایر تانسورهای معمولی
-                    batch_dict[key] = val[start:end]
-                    
-            batched_list.append(batch_dict)
-            
-        return batched_list
+        # ساخت شیء بهینه بدون ساخت لیست تکراری در RAM
+        return BatchedCachedDataset(cached_data_path, batch_size, layer_tensors)
 
     # ساخت بچ‌ها برای هر دو مجموعه داده
     train_batches = create_batches_for_split('train')
     val_batches = create_batches_for_split('val')
 
     return train_batches, val_batches
-    # return val_batches
 
 
 if __name__ == '__main__':

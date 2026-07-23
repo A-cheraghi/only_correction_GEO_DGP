@@ -324,9 +324,8 @@ class Trainer(object):
             detr_losses.backward()
             self.optimizer.step()
 
-            # if batch_idx > 0 and batch_idx % 200 == 0:
-            #     progress_bar.update(200)
-            progress_bar.update()
+            if batch_idx > 0 and batch_idx % 200 == 0:
+                progress_bar.update(200)
         progress_bar.close()
 
     def prepare_targets(self, targets, batch_size):
