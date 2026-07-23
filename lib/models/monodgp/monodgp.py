@@ -362,7 +362,25 @@ class MonoDGP(nn.Module):
             f.write(log_text)
 
 
+# --- کد بررسی دقیق نوع و ابعاد متغیرها ---
+        with open("/content/debug_info.txt", "w") as f:
+            f.write(f"type(region_probs): {type(region_probs)}\n")
+            if isinstance(region_probs, list):
+                f.write(f"len(region_probs): {len(region_probs)}\n")
+                if len(region_probs) > 0:
+                    f.write(f"type element 0: {type(region_probs[0])}\n")
+                    if hasattr(region_probs[0], 'shape'):
+                        f.write(f"shape element 0: {region_probs[0].shape}\n")
+            elif hasattr(region_probs, 'shape'):
+                f.write(f"shape region_probs: {region_probs.shape}\n")
 
+            f.write("\n-------------------\n")
+            f.write(f"type(pred_depth_map_logits): {type(pred_depth_map_logits)}\n")
+            if hasattr(pred_depth_map_logits, 'shape'):
+                f.write(f"shape pred_depth_map_logits: {pred_depth_map_logits.shape}\n")
+        
+        print("✅ اطلاعات متغیرها در /content/debug_info.txt ذخیره شد.")
+        import sys; sys.exit(0) # متوقف کردن اجرای برنامه
 
 
         # =========================================================
