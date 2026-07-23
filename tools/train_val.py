@@ -212,8 +212,8 @@ def prepare_batched_cached_data(cfg):
     # train_batches = create_batches_for_split('train')
     val_batches = create_batches_for_split('val')
 
-    # return train_batches, val_batches
-    return val_batches
+    return train_batches, val_batches
+    # return val_batches
 
 
 if __name__ == '__main__':
