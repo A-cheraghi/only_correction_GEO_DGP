@@ -379,8 +379,8 @@ class MonoDGP(nn.Module):
             if hasattr(pred_depth_map_logits, 'shape'):
                 f.write(f"shape pred_depth_map_logits: {pred_depth_map_logits.shape}\n")
         
-        print("✅ اطلاعات متغیرها در /content/debug_info.txt ذخیره شد.")
-        import sys; sys.exit(0) # متوقف کردن اجرای برنامه
+        # print("✅ اطلاعات متغیرها در /content/debug_info.txt ذخیره شد.")
+        # import sys; sys.exit(0) # متوقف کردن اجرای برنامه
 
 
         # =========================================================
