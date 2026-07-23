@@ -345,25 +345,21 @@ class MonoDGP(nn.Module):
 
 
 # =========================================================
-# --- کد بررسی دقیق نوع و ابعاد متغیرها ---
-        with open("/content/debug_info.txt", "w") as f:
-            f.write(f"type(region_probs): {type(region_probs)}\n")
-            if isinstance(region_probs, list):
-                f.write(f"len(region_probs): {len(region_probs)}\n")
-                if len(region_probs) > 0:
-                    f.write(f"type element 0: {type(region_probs[0])}\n")
-                    if hasattr(region_probs[0], 'shape'):
-                        f.write(f"shape element 0: {region_probs[0].shape}\n")
-            elif hasattr(region_probs, 'shape'):
-                f.write(f"shape region_probs: {region_probs.shape}\n")
+        sample_in_batch = 0  # <--- تغییر اندیس تصویر درون بچ
 
-            f.write("\n-------------------\n")
-            f.write(f"type(pred_depth_map_logits): {type(pred_depth_map_logits)}\n")
-            if hasattr(pred_depth_map_logits, 'shape'):
-                f.write(f"shape pred_depth_map_logits: {pred_depth_map_logits.shape}\n")
-        
-        # print("✅ اطلاعات متغیرها در /content/debug_info.txt ذخیره شد.")
-        # import sys; sys.exit(0) # متوقف کردن اجرای برنامه
+        log_text = (
+            "\n" + "="*60 + "\n"
+            f">>> LIVE FORWARD OUTPUTS (Sample {sample_in_batch} in Current Batch, Query 0) <<<\n"
+            + "="*60 + "\n"
+            f"outputs_coord (Last Layer): {outputs_coord[-1, sample_in_batch, 0].detach().cpu().numpy()}\n"
+            f"hs_2d_last (First 10):       {hs_2d[-1][sample_in_batch, 0, :10].detach().cpu().numpy()}\n"
+            f"hs_3d_last (First 10):       {hs[-1][sample_in_batch, 0, :10].detach().cpu().numpy()}\n"
+            + "="*60 + "\n"
+        )
+
+        # ذخیره مستقیم در فایل متنی داخل /content
+        with open("/content/live_debug.txt", "a") as f:
+            f.write(log_text)
 
 
 
@@ -382,8 +378,8 @@ class MonoDGP(nn.Module):
             "inter_coord": inter_coord.detach().cpu(),
             "hs_2d_last": hs_2d[-1].detach().cpu(),
             "hs_3d_last": hs[-1].detach().cpu(),
-            # "pred_depth_map_logits": pred_depth_map_logits.detach().cpu(),
-            # "region_probs": region_probs.detach().cpu(),
+            "pred_depth_map_logits": pred_depth_map_logits.detach().cpu(),
+            "region_probs": [p.detach().cpu() for p in region_probs],
         }
         return out, extracted_data
         # return out
@@ -404,9 +400,6 @@ class MonoDGP(nn.Module):
         hs_2d_last = data["hs_2d_last"]
         hs_3d_last = data["hs_3d_last"]
 
-        pred_depth_map_logits = data["pred_depth_map_logits"]
-        region_probs = data["region_probs"]
-
         out = dict()
         out['pred_logits'] = outputs_class[-1]
         out['pred_boxes'] = outputs_coord[-1]
@@ -414,9 +407,6 @@ class MonoDGP(nn.Module):
         out['pred_depth'] = outputs_depth[-1]
         out['pred_angle'] = outputs_angle[-1]
         box_logits = outputs_coord_logits[-1]
-
-        out['pred_depth_map_logits'] = pred_depth_map_logits 
-        out['pred_region_prob'] = region_probs
 
         fusion = torch.cat([hs_2d_last, hs_3d_last], dim=-1)
         fusion_feature = self.fusion_mlp(fusion)
