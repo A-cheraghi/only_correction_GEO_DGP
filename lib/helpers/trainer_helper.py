@@ -165,7 +165,13 @@ class Trainer(object):
 
                 # ۲. اضافه کردن مستقیم ویژگی‌ها به لیست روی CPU
                 for key in extracted.keys():
-                    collected_data[key].append(extracted[key].detach().cpu())
+                    val = extracted[key]
+                    if isinstance(val, list):
+                        # اگر مقدار ورودی لیست بود (مثل region_probs) عناصر داخلش را detach کن
+                        collected_data[key].append([v.detach().cpu() for v in val])
+                    else:
+                        # برای تانسورهای معمولی
+                        collected_data[key].append(val.detach().cpu())
 
         # ۳. چسباندن لیست‌ها و تبدیل به تانسور یکپارچه
         self.logger.info("Combining network features into unified tensors...")
