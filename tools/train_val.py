@@ -53,7 +53,7 @@ def main():
     import numpy as np
 
     # فرض می‌کنیم train_batches ساخته شده است
-    first_batch = train_batches[0]  # گرفتن اولین بچ
+    first_batch = train_batches[1]  # گرفتن اولین بچ
     sample_in_batch = 0             # نمایه/اندیس نمونه مورد نظر درون این بچ
 
     def get_sample(tensor):
