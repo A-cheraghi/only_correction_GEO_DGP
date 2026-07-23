@@ -185,15 +185,22 @@ class Trainer(object):
         ]
 
         for key, val_list in collected_data.items():
-            if key in layer_tensors:
+            if key == "region_probs":
+                # پشتیبانی از لیست region_probs: چسباندن بچ‌ها برای تک‌تک لایه‌ها
+                num_layers = len(val_list[0])
+                final_dataset[key] = [
+                    torch.cat([batch[layer_idx] for batch in val_list], dim=0)
+                    for layer_idx in range(num_layers)
+                ]
+            elif key in layer_tensors:
                 final_dataset[key] = torch.cat(val_list, dim=1)
             else:
+                # pred_depth_map_logits و بقیه تانسورها مستقیم روی dim=0 چسبانده می‌شوند
                 final_dataset[key] = torch.cat(val_list, dim=0)
 
         # ۴. ذخیره تک‌فایل نهایی بدون هیچ داده اضافی
         torch.save(final_dataset, save_path, _use_new_zipfile_serialization=True)
         self.logger.info(f" Successfully saved unified network features to '{save_path}'!")
-
         
     def train(self):
 
