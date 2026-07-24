@@ -217,7 +217,7 @@ def main():
 
 
 
-#سی
+#سینسیتب
 
 import os
 import torch
