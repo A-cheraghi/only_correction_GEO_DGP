@@ -285,16 +285,16 @@ class Trainer(object):
             #     else v.to(self.device, non_blocking=True)
             #     for k, v in raw_batch.items()
             # }
-            # 🧪 تست اختصاصی: ساخت داده‌های الکی مستقیم روی GPU
-            B = inputs.shape[0]
-            first_real_batch = self.train_batches[0] # فقط برای گرفتن کلیدها و ابعاد اصلی
-            
-            batch_cached_data = {}
-            for k, v in first_real_batch.items():
-                if isinstance(v, list):
-                    batch_cached_data[k] = [torch.randn_like(item, device=self.device) for item in v]
-                else:
-                    batch_cached_data[k] = torch.randn_like(v, device=self.device)
+            if not hasattr(self, '_fake_batch_cached'):
+                raw_first = self.train_batches[0]
+                self._fake_batch_cached = {
+                    k: [item.to(self.device) for item in v] if isinstance(v, list)
+                    else v.to(self.device)
+                    for k, v in raw_first.items()
+                }
+
+            # استفاده از همان داده‌های معتبر آماده‌روی GPU (بدون معطلی RAM و دیسک)
+            batch_cached_data = self._fake_batch_cached
 
             self.optimizer.zero_grad()
             outputs = self.model.forward_correction(batch_cached_data)
