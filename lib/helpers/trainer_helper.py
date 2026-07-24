@@ -308,40 +308,40 @@ class Trainer(object):
             outputs = self.model.forward_correction(batch_cached_data)
             # outputs = self.model(inputs, calibs, targets, img_sizes, dn_args=dn_args)
 
-            mask_dict=None
-            #ipdb.set_trace()
-            detr_losses_dict = self.detr_loss(outputs, targets, mask_dict)
+            # mask_dict=None
+            # #ipdb.set_trace()
+            # detr_losses_dict = self.detr_loss(outputs, targets, mask_dict)
 
-            weight_dict = self.detr_loss.weight_dict
-            detr_losses_dict_weighted = [detr_losses_dict[k] * weight_dict[k] for k in detr_losses_dict.keys() if k in weight_dict]
-            detr_losses = sum(detr_losses_dict_weighted)
+            # weight_dict = self.detr_loss.weight_dict
+            # detr_losses_dict_weighted = [detr_losses_dict[k] * weight_dict[k] for k in detr_losses_dict.keys() if k in weight_dict]
+            # detr_losses = sum(detr_losses_dict_weighted)
 
-            detr_losses_dict = misc.reduce_dict(detr_losses_dict)
-            detr_losses_dict_log = {}
-            detr_losses_log = 0
-            for k in detr_losses_dict.keys():
-                if k in weight_dict:
-                    detr_losses_dict_log[k] = (detr_losses_dict[k] * weight_dict[k]).item()
-                    detr_losses_log += detr_losses_dict_log[k]
-            detr_losses_dict_log["loss_detr"] = detr_losses_log
+            # detr_losses_dict = misc.reduce_dict(detr_losses_dict)
+            # detr_losses_dict_log = {}
+            # detr_losses_log = 0
+            # for k in detr_losses_dict.keys():
+            #     if k in weight_dict:
+            #         detr_losses_dict_log[k] = (detr_losses_dict[k] * weight_dict[k]).item()
+            #         detr_losses_log += detr_losses_dict_log[k]
+            # detr_losses_dict_log["loss_detr"] = detr_losses_log
 
-            flags = [True] * 5
-            if batch_idx % 30 == 0:
-                print("----", batch_idx, "----")
-                print("%s: %.2f, " %("loss_detr", detr_losses_dict_log["loss_detr"]))
-                for key, val in detr_losses_dict_log.items():
-                    if key == "loss_detr":
-                        continue
-                    if "0" in key or "1" in key or "2" in key or "3" in key or "4" in key or "5" in key:
-                        if flags[int(key[-1])]:
-                            print("")
-                            flags[int(key[-1])] = False
-                    print("%s: %.2f, " %(key, val), end="")
-                print("")
-                print("")
+            # flags = [True] * 5
+            # if batch_idx % 30 == 0:
+            #     print("----", batch_idx, "----")
+            #     print("%s: %.2f, " %("loss_detr", detr_losses_dict_log["loss_detr"]))
+            #     for key, val in detr_losses_dict_log.items():
+            #         if key == "loss_detr":
+            #             continue
+            #         if "0" in key or "1" in key or "2" in key or "3" in key or "4" in key or "5" in key:
+            #             if flags[int(key[-1])]:
+            #                 print("")
+            #                 flags[int(key[-1])] = False
+            #         print("%s: %.2f, " %(key, val), end="")
+            #     print("")
+            #     print("")
 
-            detr_losses.backward()
-            self.optimizer.step()
+            # detr_losses.backward()
+            # self.optimizer.step()
 
             if batch_idx > 0 and batch_idx % 200 == 0:
                 progress_bar.update(200)
