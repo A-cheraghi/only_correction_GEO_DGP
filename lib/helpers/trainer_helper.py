@@ -259,7 +259,7 @@ class Trainer(object):
         return None
 
     def train_one_epoch(self, epoch):
-        torch.set_grad_enabled(True)
+        torch.set_grad_enabled(False)
         self.model.train()
         print(">>>>>>> Epoch:", str(epoch) + ":")
 
