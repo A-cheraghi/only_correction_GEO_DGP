@@ -744,8 +744,8 @@ class SetCriterion(nn.Module):
     #                 losses.update(l_dict)
     #     return losses
 
-    
-def forward(self, outputs, targets, mask_dict=None):
+
+    def forward(self, outputs, targets, mask_dict=None):
         """ This performs the loss computation.
         Parameters:
              outputs: dict of tensors, see the output specification of the model for the format
