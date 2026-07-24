@@ -302,7 +302,7 @@ class Trainer(object):
 
 
             # استفاده از همان داده‌های معتبر آماده‌روی GPU (بدون معطلی RAM و دیسک)
-            batch_cached_data = self._fake_batch_cached
+            batch_cached_data = gpu_cached_data
 
             self.optimizer.zero_grad()
             outputs = self.model.forward_correction(batch_cached_data)
