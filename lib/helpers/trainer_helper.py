@@ -263,6 +263,17 @@ class Trainer(object):
         self.model.train()
         print(">>>>>>> Epoch:", str(epoch) + ":")
 
+
+
+        raw_first_batch = self.train_batches[0]
+        gpu_cached_data = {
+            k: [item.to(self.device) for item in v] if isinstance(v, list)
+            else v.to(self.device)
+            for k, v in raw_first_batch.items()
+        }
+
+
+
         progress_bar = tqdm.tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters')
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.train_loader):
             inputs = inputs.to(self.device)
@@ -285,13 +296,10 @@ class Trainer(object):
             #     else v.to(self.device, non_blocking=True)
             #     for k, v in raw_batch.items()
             # }
-            if not hasattr(self, '_fake_batch_cached'):
-                raw_first = self.train_batches[0]
-                self._fake_batch_cached = {
-                    k: [item.to(self.device) for item in v] if isinstance(v, list)
-                    else v.to(self.device)
-                    for k, v in raw_first.items()
-                }
+
+
+
+
 
             # استفاده از همان داده‌های معتبر آماده‌روی GPU (بدون معطلی RAM و دیسک)
             batch_cached_data = self._fake_batch_cached
