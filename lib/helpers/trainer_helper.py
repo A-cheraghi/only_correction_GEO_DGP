@@ -278,12 +278,13 @@ class Trainer(object):
             ###
             # train one batch
 
-            batch_cached_data = {}
-            for k, v in self.train_batches[batch_idx].items():
-                if isinstance(v, list):
-                    batch_cached_data[k] = [item.to(self.device) for item in v]
-                else:
-                    batch_cached_data[k] = v.to(self.device)
+            # دریافت مستقیم بچ از RAM و ارسال سریع‌تر به GPU
+            raw_batch = self.train_batches[batch_idx]
+            batch_cached_data = {
+                k: [item.to(self.device, non_blocking=True) for item in v] if isinstance(v, list)
+                else v.to(self.device, non_blocking=True)
+                for k, v in raw_batch.items()
+            }
 
             self.optimizer.zero_grad()
             outputs = self.model.forward_correction(batch_cached_data)

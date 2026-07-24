@@ -503,8 +503,8 @@ class KITTI_Dataset(data.Dataset):
                     calibs[i + object_num] = calib.P2
 
         # collect return data
-        # inputs = img
-        inputs = torch.zeros((3, 1, 1), dtype=torch.float32)
+        inputs = img
+        
         targets = {
                    'calibs': calibs,
                    'indices': indices,

@@ -222,33 +222,45 @@ def main():
 
 from torch.utils.data import Dataset, DataLoader
 
+import gc
+
 class BatchedCachedDataset:
     def __init__(self, cached_data_path, batch_size, layer_tensors):
-        # 👈 مپ کردن فایل روی دیسک بدون اشغال رم! (mmap=True)
-        self.cached_data = torch.load(cached_data_path, map_location="cpu", weights_only=False, mmap=True)
+        # 1. بارگذاری فایل در RAM بدون mmap برای سرعت بالا
+        raw_data = torch.load(cached_data_path, map_location="cpu", weights_only=False)
+        
         self.batch_size = batch_size
         self.layer_tensors = layer_tensors
-        self.total_samples = self.cached_data["hs_2d_last"].shape[0]
+        self.total_samples = raw_data["hs_2d_last"].shape[0]
         self.num_batches = (self.total_samples + batch_size - 1) // batch_size
+        
+        # 2. برش دادن داده‌ها به صورت لیست بچ‌ها
+        self.batches = []
+        for idx in range(self.num_batches):
+            start = idx * self.batch_size
+            end = min(start + self.batch_size, self.total_samples)
+            
+            batch_dict = {}
+            for key, val in raw_data.items():
+                if key == "region_probs":
+                    batch_dict[key] = [layer_tensor[start:end] for layer_tensor in val]
+                elif key in self.layer_tensors:
+                    batch_dict[key] = val[:, start:end]
+                else:
+                    batch_dict[key] = val[start:end]
+            
+            self.batches.append(batch_dict)
+        
+        # 3. پاکسازی کامل فایل اولیه از RAM برای جلوگیری از کرش
+        del raw_data
+        gc.collect()
 
     def __len__(self):
         return self.num_batches
 
     def __getitem__(self, idx):
-        start = idx * self.batch_size
-        end = min(start + self.batch_size, self.total_samples)
-        
-        batch_dict = {}
-        for key, val in self.cached_data.items():
-            if key == "region_probs":
-                batch_dict[key] = [layer_tensor[start:end] for layer_tensor in val]
-            elif key in self.layer_tensors:
-                batch_dict[key] = val[:, start:end]
-            else:
-                batch_dict[key] = val[start:end]
-                
-        return batch_dict
-
+        # خواندن مستقیم از RAM آماده‌شده بدون مراجعه به دیسک
+        return self.batches[idx]
 
 def prepare_batched_cached_data(cfg):
     """
