@@ -7,6 +7,8 @@ from torch.optim.optimizer import Optimizer
 def build_optimizer(cfg_optimizer, model):
     weights, biases = [], []
     for name, param in model.named_parameters():
+        if not param.requires_grad:
+            continue
         if 'bias' in name:
             biases += [param]
         else:
